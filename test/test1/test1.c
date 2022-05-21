@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <math.h>
 
 /* g711.c   A-law and linear PCM conversions. */
 
@@ -131,25 +132,37 @@ short num_voice[4][2000] = {
 int main()
 {
 	int i, j;
+	int v_v, v_c, v_n;
+	double ss, nn,snr;
 	unsigned char num[4][2000];
 	short num_change[4][2000];
-	short num_save[512];
-	FILE* fp, * fr, * fs, * fd;
+	short num_change_1[256];
+	short num_save[256];
+	short num_save_1[256];
+	unsigned char num_origin[256];
+	FILE* fp, * fr, * fs, * fd, * fa;
 	fopen_s(&fp, "8bit.txt", "wb");
 	fopen_s(&fr, "numchange.txt", "wb");
 	fopen_s(&fs, "num_voice.txt", "wb");
 	fopen_s(&fd, "num_save.txt", "wb");
-	for (i = 0; i < 512; i++)
+	fopen_s(&fa, "num_save_1.txt", "wb");
+	v_v = v_c = v_n = 0;
+	ss = nn = 0;
+	for (i = 0; i < 256; i++)
 	{
 		num_save[i] = 0;
+		num_save_1[i] = 0;
+		num_origin[i] = i;
+		num_change_1[i] = 0;
 	}
+
 	for (i = 0; i < 4; i++)
 	{
 		for (j = 0; j < 2000; j++)
 		{
 			num[i][j] = linear2alaw(num_voice[i][j]);
 			num_change[i][j] = alaw2linear(num[i][j]);
-			num_save[num[i][j]] = num_voice[i][j];
+			num_save[num[i][j]] = num_change[i][j];
 			fprintf(fp, "%d, ", num[i][j]);
 			fprintf(fr, "%d, ", num_change[i][j]);
 			fprintf(fs, "%d, ", num_voice[i][j]);
@@ -158,13 +171,34 @@ int main()
 		fprintf(fr, "\n");
 		fprintf(fs, "\n");
 	}
-	for (i = 0; i < 512; i++)
+	for (i = 0; i < 256; i++)
 	{
 		fprintf(fd, "%d, ", num_save[i]);
+		num_change_1[i] = alaw2linear(num_origin[i]);
+		num_save_1[num_origin[i]] = num_change_1[i];
+		fprintf(fa, "%d, ", num_save_1[i]);
 	}
+	/* SNR */
+	for (i = 0; i < 4; i++)
+	{
+		for (j = 0; j < 2000; j++)
+		{
+			v_c = num_change[i][j];
+			v_v = num_voice[i][j];
+			v_n = v_c - v_v;
+			ss += v_v * v_v;
+			nn += v_n * v_n;
+		}
+		
+	}
+	snr = 10 * log10(ss / nn);
+	printf("%lf\n", snr);
+	printf("%lf\n", ss);
+	printf("%lf\n", nn);
 	fclose(fp);
 	fclose(fr);
 	fclose(fs);
 	fclose(fd);
+	fclose(fa);
 	return 0;
 }
